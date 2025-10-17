@@ -2,6 +2,36 @@
 
 Este README lista comandos e conceitos importantes para trabalhar com Docker.
 
+
+## ⚙️ Passo a Passo do Dockerfile, **Exemplo com node e OS Alpine**
+
+Este guia detalha o processo de construção de uma imagem Docker, otimizada para aplicações **Node.js** usando a distribuição **Alpine**, focando em eficiência e tamanho reduzido.
+
+---
+
+### 🏗️ Fases de Construção da Imagem
+
+| Comando | Descrição | Objetivo |
+| :--- | :--- | :--- |
+| `FROM node:current-alpine3.22` | Define a imagem base a ser utilizada. Utilizamos a versão **Alpine** do Node.js, conhecida por ser **extremamente leve** e segura, reduzindo o tamanho final do container. | **Inicialização da Imagem Base** |
+| `WORKDIR /app` | Define o diretório de trabalho (`/app`) dentro do container. Todos os comandos subsequentes (como `COPY` e `RUN`) serão executados a partir deste caminho. | **Configuração do Diretório** |
+| `COPY package.json .` | Copia apenas o arquivo `package.json` (e o `yarn.lock` ou `package-lock.json`, se houver) para o diretório `/app` do container. | **Cópia de Dependências** |
+| `RUN apk add --no-cache python3 g++ make python3-dev` | **Instala as Ferramentas de Compilação:** O Alpine usa o gerenciador de pacotes `apk`. Este comando instala ferramentas essenciais (`python3`, `g++`, `make`) que são frequentemente necessárias para compilar dependências nativas (como módulos C++) durante o `yarn install`. O `--no-cache` garante que os arquivos de cache de instalação sejam removidos imediatamente. | **Instalação de Binários de Build** |
+| `RUN yarn install --production` | Executa a instalação das dependências listadas no `package.json` usando o Yarn. A flag `--production` garante que apenas as dependências de produção sejam instaladas, **excluindo as de desenvolvimento** para manter a imagem enxuta. | **Instalação de Dependências Node** |
+| `COPY . .` | Copia o restante dos arquivos da aplicação (código-fonte, assets, etc.) do diretório local (máquina host) para o diretório de trabalho (`/app`) no container. | **Cópia do Código-Fonte** |
+| `CMD ["node", "src/index.js"]` | Define o comando padrão que será executado quando o container for iniciado (ou seja, quando `docker run` for chamado). Ele inicia a aplicação Node.js. | **Ponto de Entrada da Aplicação** |
+| `EXPOSE 3000` | Documenta que a aplicação dentro do container está escutando na porta **3000**. Isso é apenas informativo; para acessar a aplicação externamente, a porta deve ser mapeada com a flag `-p` no comando `docker run`. | **Declaração de Porta** |
+
+---
+
+## 💡 Por que a Ordem dos Comandos é Importante?
+
+A ordem em que os comandos `COPY` e `RUN` são executados é crucial para o desempenho e otimização do Docker, pois ela afeta o **Cache de Camadas** (Layers Cache):
+
+1.  **Cópia Isolada:** Copiar `package.json` e instalar dependências (`yarn install`) separadamente garante que esta camada (que geralmente é grande) **só será reconstruída** se o arquivo `package.json` mudar.
+2.  **Eficiência:** Se apenas o código-fonte (que é copiado na camada `COPY . .` final) for alterado, o Docker reutiliza o cache de todas as camadas anteriores (incluindo o demorado `yarn install`), resultando em **builds muito mais rápidos**.
+
+
 ## 🐳 Comandos Docker
 
 ### Construção de Imagens
@@ -50,6 +80,14 @@ Este README lista comandos e conceitos importantes para trabalhar com Docker.
 | `docker volume create {nome que voce vai dar ao volume}` | Cria um volume com o nome desejado. |
 | `docker volume inspect {nome que voce vai dar ao volume}` | Vizualiza as informações do volume,onde foi criado,data de criação e etc. |
 | `docker run -d -p {associação de porta} --name {nome do container} -v {nome do volume criado}:{diretorio onde ele vai ser adicionado "exemplo: /app/dados"} {nome-repo:tag}` | cria um novo container associando o volume e direcionando o diretorio onde ele vai ficar. |
+
+### Copiando arquivos do container para a maquina Local
+
+| Comando | Descrição |
+| :--- | :--- |
+| `docker cp {nome do container}:{origem do dado "exemplo: /app/pasta/teste.txt} {destino, se for na mesma pasta que o cmd estiver aberto, pode colocar comente um ponto}` | Copia o arquivo do container para a maquina local. |
+| `docker cp {nome do arquivo} {nome do container}:{destino onde vai ser copiado "exemplo: /app/pasta/} ` |Copia os Arquivos locais para o container. |
+
 
 ## ⚙️ Configurações no Dockerfile (Usuário)
 
